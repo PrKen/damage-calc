@@ -7,9 +7,10 @@ Optimisé pour un usage intensif avec :
 - Retry automatique
 - Batch processing
 - Gestion des erreurs
+- Lancement automatique du serveur
 
 @author Pokemon Battle ML Project
-@version 1.0.0
+@version 1.1.0
 """
 
 import requests
@@ -17,21 +18,138 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from typing import List, Dict, Optional, Any
 import time
+import subprocess
+import os
+import sys
+import atexit
+import signal
+from pathlib import Path
+
+
+# Chemin vers le dossier damage-calc
+DAMAGE_CALC_DIR = Path(__file__).parent.absolute()
+API_SERVER_PATH = DAMAGE_CALC_DIR / "api-server.js"
+
+
+class ServerManager:
+    """Gère le cycle de vie du serveur Node.js"""
+    
+    _instance = None
+    _server_process = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+    
+    def start_server(self, port: int = 3000, timeout: int = 30) -> bool:
+        """
+        Lance le serveur Node.js si nécessaire.
+        
+        Args:
+            port: Port du serveur
+            timeout: Temps max d'attente pour le démarrage
+            
+        Returns:
+            True si le serveur est prêt
+        """
+        # Vérifier si le serveur tourne déjà
+        if self._is_server_running(port):
+            return True
+        
+        # Vérifier que le fichier existe
+        if not API_SERVER_PATH.exists():
+            raise FileNotFoundError(f"api-server.js non trouvé: {API_SERVER_PATH}")
+        
+        print(f"🚀 Démarrage du serveur DamageCalc sur le port {port}...")
+        
+        # Lancer le serveur en subprocess
+        env = os.environ.copy()
+        env["PORT"] = str(port)
+        
+        # Utiliser CREATE_NEW_PROCESS_GROUP sur Windows pour éviter les signaux
+        creationflags = 0
+        if sys.platform == "win32":
+            creationflags = subprocess.CREATE_NEW_PROCESS_GROUP
+        
+        self._server_process = subprocess.Popen(
+            ["node", "api-server.js"],
+            cwd=str(DAMAGE_CALC_DIR),
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            creationflags=creationflags
+        )
+        
+        # Enregistrer le cleanup
+        atexit.register(self.stop_server)
+        
+        # Attendre que le serveur soit prêt
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            if self._is_server_running(port):
+                print(f"✅ Serveur DamageCalc prêt sur http://localhost:{port}")
+                return True
+            time.sleep(0.5)
+            
+            # Vérifier si le process est mort
+            if self._server_process.poll() is not None:
+                # Lire la sortie pour debug
+                output, _ = self._server_process.communicate()
+                raise RuntimeError(f"Le serveur a crashé: {output.decode()}")
+        
+        raise TimeoutError(f"Le serveur n'a pas démarré en {timeout}s")
+    
+    def stop_server(self):
+        """Arrête le serveur Node.js"""
+        if self._server_process is not None:
+            print("🛑 Arrêt du serveur DamageCalc...")
+            if sys.platform == "win32":
+                self._server_process.terminate()
+            else:
+                self._server_process.send_signal(signal.SIGTERM)
+            self._server_process.wait(timeout=5)
+            self._server_process = None
+    
+    def _is_server_running(self, port: int) -> bool:
+        """Vérifie si le serveur répond"""
+        try:
+            r = requests.get(f"http://localhost:{port}/health", timeout=2)
+            return r.status_code == 200
+        except:
+            return False
 
 
 class DamageCalcClient:
     """Client Python pour l'API DamageCalc"""
     
-    def __init__(self, base_url: str = "http://localhost:3000", timeout: int = 30):
+    def __init__(
+        self, 
+        base_url: str = "http://localhost:3000", 
+        timeout: int = 30,
+        auto_start: bool = True
+    ):
         """
         Initialise le client.
         
         Args:
             base_url: URL du serveur API
             timeout: Timeout par défaut pour les requêtes
+            auto_start: Lance automatiquement le serveur s'il n'est pas accessible
         """
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        self._server_manager = ServerManager()
+        
+        # Extraire le port de l'URL
+        port = 3000
+        if ":" in base_url.split("//")[-1]:
+            port = int(base_url.split(":")[-1].rstrip("/"))
+        self._port = port
+        
+        # Auto-start du serveur si demandé
+        if auto_start:
+            self._server_manager.start_server(port=port)
         
         # Session persistante avec retry
         self.session = requests.Session()
