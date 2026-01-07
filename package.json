@@ -42,5 +42,10 @@
   },
   "subPackages": [
     "calc"
-  ]
+  ],
+  "dependencies": {
+    "@smogon/calc": "^0.10.0",
+    "compression": "^1.8.1",
+    "mongodb": "^6.14.0"
+  }
 }
