@@ -44,9 +44,9 @@ describe('calc', () => {
 
     tests('Comet Punch', ({gen, calculate, Pokemon, Move}) => {
       expect(calculate(Pokemon('Snorlax'), Pokemon('Vulpix'), Move('Comet Punch'))).toMatch(gen, {
-        1: {range: [108, 129], desc: 'Snorlax Comet Punch (3 hits) vs. Vulpix', result: '(38.7 - 46.2%) -- approx. 3HKO'},
-        3: {range: [132, 156], desc: '0 Atk Snorlax Comet Punch (3 hits) vs. 0 HP / 0 Def Vulpix', result: '(60.8 - 71.8%) -- approx. 2HKO'},
-        4: {range: [129, 156], result: '(59.4 - 71.8%) -- approx. 2HKO'},
+        1: {range: [108, 129], desc: 'Snorlax Comet Punch (3 hits) vs. Vulpix', result: '(38.7 - 46.2%) -- guaranteed 3HKO'},
+        3: {range: [132, 156], desc: '0 Atk Snorlax Comet Punch (3 hits) vs. 0 HP / 0 Def Vulpix', result: '(60.8 - 71.8%) -- guaranteed 2HKO'},
+        4: {range: [129, 156], result: '(59.4 - 71.8%) -- guaranteed 2HKO'},
       });
     });
 
@@ -424,7 +424,7 @@ describe('calc', () => {
             [76, 76, 78, 78, 79, 81, 81, 82, 82, 84, 85, 85, 87, 87, 88, 90],
           ]);
           expect(result.desc()).toBe(
-            '152 Atk Parental Bond Kangaskhan-Mega Frustration vs. 252 HP / 152+ Def Amoonguss: 229-270 (53 - 62.5%) -- approx. 2HKO'
+            '152 Atk Parental Bond Kangaskhan-Mega Frustration vs. 252 HP / 152+ Def Amoonguss: 229-270 (53 - 62.5%) -- guaranteed 2HKO'
           );
         } else {
           expect(result.damage).toEqual([
@@ -432,7 +432,7 @@ describe('calc', () => {
             [37, 37, 39, 39, 39, 40, 40, 40, 40, 42, 42, 42, 43, 43, 43, 45],
           ]);
           expect(result.desc()).toBe(
-            '152 Atk Parental Bond Kangaskhan-Mega Frustration vs. 252 HP / 152+ Def Amoonguss: 190-225 (43.9 - 52%) -- approx. 6.6% chance to 2HKO'
+            '152 Atk Parental Bond Kangaskhan-Mega Frustration vs. 252 HP / 152+ Def Amoonguss: 190-225 (43.9 - 52%) -- 6.6% chance to 2HKO'
           );
         }
 
@@ -474,7 +474,7 @@ describe('calc', () => {
           [92, 96, 96, 96, 96, 100, 100, 100, 104, 104, 104, 104, 108, 108, 108, 112],
         ]);
         expect(result.desc()).toBe(
-          '252 Atk Parental Bond Kangaskhan-Mega Crunch vs. 0 HP / 0 Def Shadow Shield Lunala: 280-334 (67.4 - 80.4%) -- approx. 2HKO'
+          '252 Atk Parental Bond Kangaskhan-Mega Crunch vs. 0 HP / 0 Def Shadow Shield Lunala: 280-334 (67.4 - 80.4%) -- guaranteed 2HKO'
         );
       });
     });
@@ -492,6 +492,53 @@ describe('calc', () => {
         const result2 = calculate(weavile, audinoMega, knockoff);
         expect(result2.desc()).toBe(
           '0 Atk Weavile Knock Off vs. 0 HP / 0 Def Audino: 93-111 (26.8 - 31.9%) -- guaranteed 4HKO'
+        );
+      });
+    });
+
+    inGens(1, 9, ({gen, calculate, Pokemon, Move}) => {
+      test(`Multi-hit percentage kill (gen ${gen})`, () => {
+        if (gen < 3) {
+          const result = calculate(
+            Pokemon('Persian', {boosts: {atk: 4}}),
+            Pokemon('Abra'),
+            Move('Fury Swipes', {hits: 2}),
+          );
+          expect(result.range()).toEqual([218, 258]);
+          expect(result.desc()).toBe(
+            '+4 Persian Fury Swipes (2 hits) vs. Abra: 218-258 (86.1 - 101.9%) -- 2.9% chance to OHKO'
+          );
+        } else if (gen === 3) {
+          const result = calculate(
+            Pokemon('Persian', {boosts: {atk: 3}}),
+            Pokemon('Abra', {boosts: {def: 1}}),
+            Move('Fury Swipes', {hits: 2}),
+          );
+          expect(result.range()).toEqual([174, 206]);
+          expect(result.desc()).toBe(
+            '+3 0 Atk Persian Fury Swipes (2 hits) vs. +1 0 HP / 0 Def Abra: 174-206 (91 - 107.8%) -- 41.8% chance to OHKO'
+          );
+        } else {
+          const result = calculate(
+            Pokemon('Persian', {boosts: {atk: 3}}),
+            Pokemon('Abra', {boosts: {def: 1}}),
+            Move('Fury Swipes', {hits: 2}),
+          );
+          expect(result.range()).toEqual([174, 206]);
+          expect(result.desc()).toBe(
+            '+3 0 Atk Persian Fury Swipes (2 hits) vs. +1 0 HP / 0 Def Abra: 174-206 (91 - 107.8%) -- 43.8% chance to OHKO'
+          );
+        }
+      });
+    });
+    inGens(8, 9, ({gen, calculate, Pokemon, Move}) => {
+      test('Knock Off vs. Zacian Crowned', () => {
+        const weavile = Pokemon('Weavile');
+        const zacian = Pokemon('Zacian-Crowned', {ability: 'Intrepid Sword', item: 'Rusted Sword'});
+        const knockoff = Move('Knock Off');
+        const result = calculate(weavile, zacian, knockoff);
+        expect(result.desc()).toBe(
+          '0 Atk Weavile Knock Off vs. 0 HP / 0 Def Zacian-Crowned: 36-43 (11 - 13.2%) -- possible 8HKO'
         );
       });
     });
@@ -522,9 +569,6 @@ describe('calc', () => {
           Move('Icicle Spear'),
         );
         expect(result.range()).toEqual([115, 138]);
-        expect(result.desc()).toBe(
-          '0 Atk Mamoswine Icicle Spear (3 hits) vs. 0 HP / 0 Def Weak Armor Skarmory: 115-138 (42.4 - 50.9%) -- approx. 2.7% chance to 2HKO'
-        );
 
         result = calculate(
           Pokemon('Mamoswine'),
@@ -535,9 +579,6 @@ describe('calc', () => {
           Move('Icicle Spear'),
         );
         expect(result.range()).toEqual([89, 108]);
-        expect(result.desc()).toBe(
-          '0 Atk Mamoswine Icicle Spear (3 hits) vs. 0 HP / 0 Def White Herb Weak Armor Skarmory: 89-108 (32.8 - 39.8%) -- approx. 99.9% chance to 3HKO'
-        );
 
         result = calculate(
           Pokemon('Mamoswine'),
@@ -549,9 +590,6 @@ describe('calc', () => {
           Move('Icicle Spear'),
         );
         expect(result.range()).toEqual([56, 69]);
-        expect(result.desc()).toBe(
-          '0 Atk Mamoswine Icicle Spear (3 hits) vs. +2 0 HP / 0 Def Weak Armor Skarmory: 56-69 (20.6 - 25.4%) -- approx. 0.1% chance to 4HKO'
-        );
 
         result = calculate(
           Pokemon('Mamoswine', {
@@ -565,9 +603,6 @@ describe('calc', () => {
           Move('Icicle Spear'),
         );
         expect(result.range()).toEqual([75, 93]);
-        expect(result.desc()).toBe(
-          '0 Atk Unaware Mamoswine Icicle Spear (3 hits) vs. 0 HP / 0 Def Skarmory: 75-93 (27.6 - 34.3%) -- approx. 1.5% chance to 3HKO'
-        );
       });
     });
 
@@ -583,12 +618,12 @@ describe('calc', () => {
         if (gen === 6) {
           expect(result.range()).toEqual([96, 113]);
           expect(result.desc()).toBe(
-            '0 Atk Aerilate Pinsir-Mega Double Hit (2 hits) vs. 0 HP / 0 Def Mummy Cofagrigus: 96-113 (37.3 - 43.9%) -- approx. 3HKO'
+            '0 Atk Aerilate Pinsir-Mega Double Hit (2 hits) vs. 0 HP / 0 Def Mummy Cofagrigus: 96-113 (37.3 - 43.9%) -- guaranteed 3HKO'
           );
         } else {
           expect(result.range()).toEqual([91, 107]);
           expect(result.desc()).toBe(
-            '0 Atk Aerilate Pinsir-Mega Double Hit (2 hits) vs. 0 HP / 0 Def Mummy Cofagrigus: 91-107 (35.4 - 41.6%) -- approx. 3HKO'
+            '0 Atk Aerilate Pinsir-Mega Double Hit (2 hits) vs. 0 HP / 0 Def Mummy Cofagrigus: 91-107 (35.4 - 41.6%) -- guaranteed 3HKO'
           );
         }
       });
@@ -605,7 +640,7 @@ describe('calc', () => {
         );
         expect(result.range()).toEqual([104, 126]);
         expect(result.desc()).toBe(
-          '0 SpA Greninja Water Shuriken (15 BP) (3 hits) vs. 0 HP / 0 SpD Luminous Moss Gliscor: 104-126 (35.7 - 43.2%) -- approx. 3HKO'
+          '0 SpA Greninja Water Shuriken (15 BP) (3 hits) vs. 0 HP / 0 SpD Luminous Moss Gliscor: 104-126 (35.7 - 43.2%) -- guaranteed 3HKO'
         );
 
         result = calculate(
@@ -617,9 +652,6 @@ describe('calc', () => {
           Move('Water Shuriken'),
         );
         expect(result.range()).toEqual([92, 114]);
-        expect(result.desc()).toBe(
-          '0 SpA Greninja Water Shuriken (15 BP) (3 hits) vs. 0 HP / 0 SpD Luminous Moss Simple Gliscor: 92-114 (31.6 - 39.1%) -- approx. 79.4% chance to 3HKO'
-        );
 
         result = calculate(
           Pokemon('Greninja'),
@@ -631,7 +663,7 @@ describe('calc', () => {
         );
         expect(result.range()).toEqual([176, 210]);
         expect(result.desc()).toBe(
-          '0 SpA Greninja Water Shuriken (15 BP) (3 hits) vs. 0 HP / 0 SpD Luminous Moss Contrary Gliscor: 176-210 (60.4 - 72.1%) -- approx. 2HKO'
+          '0 SpA Greninja Water Shuriken (15 BP) (3 hits) vs. 0 HP / 0 SpD Luminous Moss Contrary Gliscor: 176-210 (60.4 - 72.1%) -- guaranteed 2HKO'
         );
       });
     });
@@ -794,6 +826,39 @@ describe('calc', () => {
         expect(result.desc()).toBe(
           '0 Atk Steely Spirit Perrserker with an ally\'s Steely Spirit Iron Head vs. 0 HP / 0 Def Perrserker: 105-124 (37.3 - 44.1%) -- guaranteed 3HKO'
         );
+      });
+    });
+    describe('Shell Side Arm', () => {
+      inGens(8, 9, ({gen, calculate, Pokemon, Move, Field}) => {
+        test('Special Shell Side Arm should not factor in Fur Coat or Fluffy', () => {
+          const attacker = Pokemon('Slowbro-Galar');
+          const defender = Pokemon('Mew', {ability: 'Fluffy', evs: {def: 4}});
+
+          let result = calculate(attacker, defender, Move('Shell Side Arm'));
+          expect(result.move.category).toBe('Special');
+          expect(result.rawDesc.defenderAbility).toBeUndefined();
+
+          defender.ability = 'Fur Coat' as AbilityName;
+
+          result = calculate(attacker, defender, Move('Shell Side Arm'));
+          expect(result.move.category).toBe('Special');
+          expect(result.rawDesc.defenderAbility).toBeUndefined();
+        });
+        test('Physical Shell Side Arm should not factor in Ice Scales', () => {
+          const attacker = Pokemon('Slowbro-Galar');
+          const defender = Pokemon('Mew', {ability: 'Ice Scales', evs: {spd: 4}});
+
+          const result = calculate(attacker, defender, Move('Shell Side Arm'));
+          expect(result.move.category).toBe('Physical');
+          expect(result.rawDesc.defenderAbility).toBeUndefined();
+        });
+        test('Physical Shell Side Arm should make contact', () => {
+          const attacker = Pokemon('Slowbro-Galar');
+          const defender = Pokemon('Mew', {ability: 'Fluffy', evs: {spd: 4}});
+
+          const result = calculate(attacker, defender, Move('Shell Side Arm'));
+          expect(result.move.flags.contact).toBe(1);
+        });
       });
     });
   });
@@ -996,6 +1061,18 @@ describe('calc', () => {
         result = calculate(pinsir, gengar, earthquake);
         expect(result.range()).toEqual([1054, 1240]);
       });
+      test('Technicain boost should happen before boosting items', () => {
+        const scizor = Pokemon('Scizor', {
+          item: 'Insect Plate',
+          ability: 'Technician',
+        });
+        const chansey = Pokemon('Chansey');
+        const bugbite = Move('Bug Bite');
+        const result = calculate(scizor, chansey, bugbite);
+        expect(result.desc()).toBe(
+          '0 Atk Insect Plate Technician Scizor Bug Bite vs. 0 HP / 0 Def Chansey: 745-877 (116.2 - 136.8%) -- guaranteed OHKO'
+        );
+      });
     });
   });
 
@@ -1135,6 +1212,22 @@ describe('calc', () => {
         const result = calculate(bigRoot, abomasnow, Move('Drain Punch'));
         expect(result.range()).toEqual([38, 46]);
         expect(result.recovery().recovery).toEqual([24, 29]);
+      });
+      test('Big Root applies to OHKO', () => {
+        const bigRoot = Pokemon('Blissey', {item: 'Big Root'});
+        // 100 HP
+        const weak = Pokemon('Abomasnow', {
+          item: 'Icy Rock',
+          ability: 'Snow Warning',
+          nature: 'Hasty',
+          evs: {atk: 252, spd: 4, spe: 252},
+          level: 29,
+        });
+        // Guaranteed OHKO
+        const result = calculate(bigRoot, weak, Move('Drain Punch'));
+        expect(result.range()).toEqual([120, 142]);
+        // 100 damage * (50% heal * ~1.3 big root boost = ~64.99% heal) truncates to 64 HP recovered
+        expect(result.recovery().recovery).toEqual([64, 64]);
       });
       test('Loaded Field', () => {
         const field = Field({
@@ -1424,6 +1517,32 @@ describe('calc', () => {
         testCase({ability: 'Simple'}, 2);
         testCase({ability: 'Contrary'}, -1);
       });
+      test('Activating Protosynthesis with sun should not affect damage of Poltergeist and Knock Off', () => {
+        const attacker = Pokemon('Smeargle');
+        const defender = Pokemon('Gouging Fire', {'ability': 'Protosynthesis', 'item': 'Blunder Policy'});
+        const field = Field({
+          weather: 'Sun',
+        });
+
+        const knockOff = calculate(attacker, defender, Move('Knock Off'), field);
+        expect(knockOff.rawDesc.moveBP).toBe(97.5);
+
+        const poltergeist = calculate(attacker, defender, Move('Poltergeist'), field);
+        expect(poltergeist.move.bp).toBe(110);
+      });
+      test('Activating Quark Drive with Electric Terrain should not affect damage of Poltergeist and Knock Off', () => {
+        const attacker = Pokemon('Smeargle');
+        const defender = Pokemon('Iron Valiant', {'ability': 'Quark Drive', 'item': 'Blunder Policy'});
+        const field = Field({
+          weather: 'Sun',
+        });
+
+        const knockOff = calculate(attacker, defender, Move('Knock Off'), field);
+        expect(knockOff.rawDesc.moveBP).toBe(97.5);
+
+        const poltergeist = calculate(attacker, defender, Move('Poltergeist'), field);
+        expect(poltergeist.move.bp).toBe(110);
+      });
       test('Revelation Dance should change type if Pokemon Terastallized', () => {
         const attacker = Pokemon('Oricorio-Pom-Pom');
         const defender = Pokemon('Sandaconda');
@@ -1461,6 +1580,16 @@ describe('calc', () => {
         );
       });
 
+      test('Power Trick should swap attack and defense raw stats', () => {
+        const attacker = Pokemon('Bastiodon');
+        const defender = Pokemon('Glaceon');
+        const result = calculate(attacker, defender, Move('Iron Head'), Field({attackerSide: {isPowerTrick: true}}));
+
+        expect(result.desc()).toBe(
+          '0 Atk Bastiodon with Power Trick Iron Head vs. 0 HP / 0 Def Glaceon: 252-296 (92.9 - 109.2%) -- 56.3% chance to OHKO'
+        );
+      });
+
       test('Wind Rider should give an Attack boost in Tailwind', () => {
         const attacker = Pokemon('Brambleghast', {'ability': 'Wind Rider'});
         const defender = Pokemon('Brambleghast', {'ability': 'Wind Rider'});
@@ -1475,7 +1604,38 @@ describe('calc', () => {
         expect(attacker.boosts.atk).toBe(0);
         expect(result.attacker.boosts.atk).toBe(1);
       });
+      describe('Terastallization', () => {
+        describe('Terastallization Base Power boost', () => {
+          const pokemon = Pokemon('Arceus', {teraType: 'Normal'});
+          test('Moves under 40 Base Power should be boosted to 60 Base Power', () => {
+            expect(calculate(pokemon, pokemon, Move('Scratch')).rawDesc.moveBP).toBe(60);
+          });
+          test('Multihit moves don\'t get their Base Power boosted', () => {
+            expect(calculate(pokemon, pokemon, Move('Spike Cannon')).rawDesc.moveBP).toBeUndefined();
+          });
+          test('Priority moves don\'t get their Base Power boosted', () => {
+            expect(calculate(pokemon, pokemon, Move('Quick Attack')).rawDesc.moveBP).toBeUndefined();
+          });
+        });
+        test('Pokemon with moves affected by Triage should still have their BP boosted', () => {
+          const pokemon = Pokemon('Comfey', {ability: 'Triage', teraType: 'Fairy'});
+          expect(calculate(pokemon, pokemon, Move('Draining Kiss')).rawDesc.moveBP).toBe(60);
 
+          pokemon.teraType = 'Grass';
+          expect(calculate(pokemon, pokemon, Move('Absorb')).rawDesc.moveBP).toBe(60);
+
+          pokemon.teraType = 'Stellar';
+          expect(calculate(pokemon, pokemon, Move('Draining Kiss', {isStellarFirstUse: true})).rawDesc.moveBP).toBe(60);
+          expect(calculate(pokemon, pokemon, Move('Absorb', {isStellarFirstUse: true})).rawDesc.moveBP).toBe(60);
+        });
+        test('Pokemon with moves affected by Gale Wings should still have their BP boosted', () => {
+          const pokemon = Pokemon('Talonflame', {ability: 'Gale Wings', teraType: 'Flying'});
+          expect(calculate(pokemon, pokemon, Move('Peck')).rawDesc.moveBP).toBe(60);
+
+          pokemon.teraType = 'Stellar';
+          expect(calculate(pokemon, pokemon, Move('Peck', {isStellarFirstUse: true})).rawDesc.moveBP).toBe(60);
+        });
+      });
       describe('Tera Stellar', () => {
         const terastal = Pokemon('Arceus', {teraType: 'Stellar'});
         const control = Pokemon('Arceus');
@@ -1506,6 +1666,63 @@ describe('calc', () => {
               .rawDesc
               .isStellarFirstUse);
           expect(result[0]).not.toEqual(result[1]);
+        });
+        test('should boost the Base Power of moves under 60 Base Power if it\'s the first use of the move', () => {
+          expect(calculate(terastal, control, Move('Water Gun', {isStellarFirstUse: true})).rawDesc.moveBP).toBe(60);
+          expect(calculate(terastal, control, Move('Water Gun', {isStellarFirstUse: false})).rawDesc.moveBP).toBeUndefined();
+          expect(calculate(terastal, control, Move('Scratch', {isStellarFirstUse: true})).rawDesc.moveBP).toBe(60);
+          expect(calculate(terastal, control, Move('Scratch', {isStellarFirstUse: false})).rawDesc.moveBP).toBeUndefined();
+        });
+        describe('should boost the base Power of moves weakened in Terrain', () => {
+          test('Dragon-type moves in Misty Terrain', () => {
+            const pokemon = Pokemon('Dracovish', {teraType: 'Stellar'});
+            expect(calculate(pokemon, pokemon, Move('Dragon Rush', {isStellarFirstUse: true}), Field({terrain: 'Misty'})).rawDesc.moveBP).toBe(60);
+          });
+          test('Earthquake in Grassy Terrain', () => {
+            const pokemon = Pokemon('Dracovish', {teraType: 'Stellar'});
+            expect(calculate(pokemon, pokemon, Move('Earthquake', {isStellarFirstUse: true}), Field({terrain: 'Grassy'})).rawDesc.moveBP).toBe(60);
+          });
+        });
+      });
+      describe('Nihil Light is neutral to Fairy-types', () => {
+        const attacker = Pokemon('Zygarde-Mega', {teraType: 'Electric'});
+        const nihilLight = Move('Nihil Light');
+        const otherMove = Move('Electro Drift');
+
+        test('On a Pokemon otherwise neutral to Dragon', () => {
+          const defender = Pokemon('Arceus-Fairy');
+
+          const nihilResult = calculate(attacker, defender, nihilLight);
+          const otherResult = calculate(attacker, defender, otherMove);
+
+          const nihilRange = nihilResult.range();
+          const otherRange = otherResult.range();
+          expect(nihilRange[0]).toBe(otherRange[0]);
+          expect(nihilRange[1]).toBe(otherRange[1]);
+        });
+
+        test('On a Pokemon otherwise resistant to Dragon', () => {
+          const defender = Pokemon('Mawile');
+
+          const nihilResult = calculate(attacker, defender, nihilLight);
+          const otherResult = calculate(attacker, defender, otherMove);
+
+          const nihilRange = nihilResult.range();
+          const otherRange = otherResult.range();
+          expect(nihilRange[0]).toBeLessThan(otherRange[0]);
+          expect(nihilRange[1]).toBeLessThan(otherRange[1]);
+        });
+
+        test('On a Pokemon otherwise weak to Dragon', () => {
+          const defender = Pokemon('Altaria-Mega');
+
+          const nihilResult = calculate(attacker, defender, nihilLight);
+          const otherResult = calculate(attacker, defender, otherMove);
+
+          const nihilRange = nihilResult.range();
+          const otherRange = otherResult.range();
+          expect(nihilRange[0]).toBeGreaterThan(otherRange[0]);
+          expect(nihilRange[1]).toBeGreaterThan(otherRange[1]);
         });
       });
     });

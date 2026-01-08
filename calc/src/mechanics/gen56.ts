@@ -362,16 +362,18 @@ export function calculateBWXY(
     desc.attackerAbility = attacker.ability;
   }
 
-  let damage: number[] = [];
+  const damage: number[] = [];
   for (let i = 0; i < 16; i++) {
     damage[i] =
       getFinalDamage(baseDamage, i, typeEffectiveness, applyBurn, stabMod, finalMod);
   }
+  result.damage = childDamage ? [damage, childDamage] : damage;
 
   desc.attackBoost =
     move.named('Foul Play') ? defender.boosts[attackStat] : attacker.boosts[attackStat];
 
   if (move.timesUsed! > 1 || move.hits > 1) {
+    const damageMatrix = [damage];
     // store boosts so intermediate boosts don't show.
     const origDefBoost = desc.defenseBoost;
     const origAtkBoost = desc.attackBoost;
@@ -421,25 +423,24 @@ export function calculateBWXY(
       );
       const newFinalMod = chainMods(newFinalMods, 41, 131072);
 
-      let damageMultiplier = 0;
-      damage = damage.map(affectedAmount => {
+      const damageArray = [];
+      for (let i = 0; i < 16; i++) {
         const newFinalDamage = getFinalDamage(
           newBaseDamage,
-          damageMultiplier,
+          i,
           typeEffectiveness,
           applyBurn,
           stabMod,
           newFinalMod
         );
-        damageMultiplier++;
-        return affectedAmount + newFinalDamage;
-      });
+        damageArray[i] = newFinalDamage;
+      }
+      damageMatrix[times] = damageArray;
     }
+    result.damage = damageMatrix;
     desc.defenseBoost = origDefBoost;
     desc.attackBoost = origAtkBoost;
   }
-
-  result.damage = childDamage ? [damage, childDamage] : damage;
 
   // #endregion
 
@@ -529,7 +530,7 @@ export function calculateBasePowerBWXY(
     desc.moveBP = basePower;
     break;
   case 'Fling':
-    basePower = getFlingPower(attacker.item);
+    basePower = getFlingPower(attacker.item, gen.num);
     desc.moveBP = basePower;
     desc.attackerItem = attacker.item;
     break;
@@ -817,6 +818,12 @@ export function calculateAttackBWXY(
       ? getStatDescriptionText(gen, defender, attackStat, defender.nature)
       : getStatDescriptionText(gen, attacker, attackStat, attacker.nature);
 
+  // Power Trick swaps base Attack and Defense stats and gets applied before boosts
+  if (field.attackerSide.isPowerTrick && !move.named('Foul Play') && move.category === 'Physical') {
+    desc.isPowerTrickAttacker = true;
+    attackSource.rawStats[attackStat] = attacker.rawStats.def;
+  }
+
   if (attackSource.boosts[attackStat] === 0 ||
       (isCritical && attackSource.boosts[attackStat] < 0)) {
     attack = attackSource.rawStats[attackStat];
@@ -933,17 +940,28 @@ export function calculateDefenseBWXY(
   let defense: number;
   const defenseStat = move.overrideDefensiveStat || move.category === 'Physical' ? 'def' : 'spd';
   const hitsPhysical = defenseStat === 'def';
+
+  const boosts = defender.boosts[
+    field.isWonderRoom ? defenseStat === 'spd' ? 'def' : 'spd' : defenseStat
+  ];
+
+  // Power Trick swaps base Attack and Defense stats and gets applied before boosts
+  if (field.defenderSide.isPowerTrick && hitsPhysical) {
+    desc.isPowerTrickDefender = true;
+    defender.rawStats[defenseStat] = defender.rawStats.atk;
+  }
+
   desc.defenseEVs = getStatDescriptionText(gen, defender, defenseStat, defender.nature);
-  if (defender.boosts[defenseStat] === 0 ||
-    (isCritical && defender.boosts[defenseStat] > 0) ||
+  if (boosts === 0 ||
+    (isCritical && boosts > 0) ||
     move.ignoreDefensive) {
     defense = defender.rawStats[defenseStat];
   } else if (attacker.hasAbility('Unaware')) {
     defense = defender.rawStats[defenseStat];
     desc.attackerAbility = attacker.ability;
   } else {
-    defense = getModifiedStat(defender.rawStats[defenseStat]!, defender.boosts[defenseStat]!);
-    desc.defenseBoost = defender.boosts[defenseStat];
+    defense = getModifiedStat(defender.rawStats[defenseStat]!, boosts);
+    desc.defenseBoost = boosts;
   }
 
   // unlike all other defense modifiers, Sandstorm SpD boost gets applied directly

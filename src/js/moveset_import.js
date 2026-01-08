@@ -158,7 +158,7 @@ function getStats(currentPoke, rows, offset) {
 		}
 
 		currentNature = rows[x] ? rows[x].trim().split(" ") : '';
-		if (currentNature[1] == "Nature") {
+		if (currentNature[1] == "Nature" && currentNature[0] != "-") {
 			currentPoke.nature = currentNature[0];
 		}
 	}
@@ -181,7 +181,7 @@ function getMoves(currentPoke, rows, offset) {
 		if (rows[x]) {
 			if (rows[x][0] == "-") {
 				movesFound = true;
-				var move = rows[x].substr(2, rows[x].length - 2).replace("[", "").replace("]", "").replace("  ", "");
+				var move = rows[x].slice(2).replace("[", "").replace("]", "").trim().replace(/\s+/g, " ");
 				moves.push(move);
 			} else {
 				if (movesFound == true) {
@@ -282,6 +282,9 @@ function addSets(pokes, name) {
 	var addedpokes = 0;
 	for (var i = 0; i < rows.length; i++) {
 		currentRow = rows[i].split(/[()@]/);
+		// Skip the current row if it contains the ability As One (Spectrier / Glastrier),
+		// so that it is not treated as another distinct set.
+		if (currentRow.length > 0 && currentRow[0].includes('As One')) continue;
 		for (var j = 0; j < currentRow.length; j++) {
 			currentRow[j] = checkExeptions(currentRow[j].trim());
 			if (calc.SPECIES[9][currentRow[j].trim()] !== undefined) {
@@ -303,11 +306,8 @@ function addSets(pokes, name) {
 			}
 		}
 	}
-	if (addedpokes == 1) {
-		alert("Successfully imported 1 set");
-		$(allPokemon("#importedSetsOptions")).css("display", "inline");
-	} else if (addedpokes > 1) {
-		alert("Successfully imported " + addedpokes + " sets");
+	if (addedpokes > 0) {
+		alert("Successfully imported " + addedpokes + (addedpokes === 1 ? " set" : " sets"));
 		$(allPokemon("#importedSetsOptions")).css("display", "inline");
 	} else {
 		alert("No sets imported, please check your syntax and try again");
@@ -316,11 +316,25 @@ function addSets(pokes, name) {
 
 function checkExeptions(poke) {
 	switch (poke) {
+	case 'Alcremie-Ruby-Cream':
+	case 'Alcremie-Matcha-Cream':
+	case 'Alcremie-Mint-Cream':
+	case 'Alcremie-Lemon-Cream':
+	case 'Alcremie-Salted-Cream':
+	case 'Alcremie-Ruby-Swirl':
+	case 'Alcremie-Caramel-Swirl':
+	case 'Alcremie-Rainbow-Swirl':
+		poke = "Alcremie";
+		break;
 	case 'Aegislash':
 		poke = "Aegislash-Blade";
 		break;
 	case 'Basculin-Blue-Striped':
 		poke = "Basculin";
+		break;
+	case 'Burmy-Sandy':
+	case 'Burmy-Trash':
+		poke = "Burmy";
 		break;
 	case 'Gastrodon-East':
 		poke = "Gastrodon";
@@ -330,6 +344,14 @@ function checkExeptions(poke) {
 		break;
 	case 'Mimikyu-Busted':
 		poke = "Mimikyu";
+		break;
+	case 'Minior-Orange':
+	case 'Minior-Yellow':
+	case 'Minior-Green':
+	case 'Minior-Blue':
+	case 'Minior-Indigo':
+	case 'Minior-Violet':
+		poke = "Minior";
 		break;
 	case 'Pikachu-Belle':
 	case 'Pikachu-Cosplay':
@@ -341,8 +363,27 @@ function checkExeptions(poke) {
 	case 'Pikachu-Rock-Star':
 		poke = "Pikachu";
 		break;
+	case 'Tastugiri-Droopy':
+	case 'Tatsugiri-Stretchy':
+		poke = "Tatsugiri";
+		break;
+	case 'Vivillon-Archipelago':
+	case 'Vivillon-Continental':
+	case 'Vivillon-Elegant':
 	case 'Vivillon-Fancy':
+	case 'Vivillon-Garden':
+	case 'Vivillon-High Plains':
+	case 'Vivillon-Icy Snow':
+	case 'Vivillon-Modern':
+	case 'Vivillon-Monsoon':
+	case 'Vivillon-Ocean':
 	case 'Vivillon-Pokeball':
+	case 'Vivillon-Polar':
+	case 'Vivillon-River':
+	case 'Vivillon-Sandstorm':
+	case 'Vivillon-Savanna':
+	case 'Vivillon-Sun':
+	case 'Vivillon-Tundra':
 		poke = "Vivillon";
 		break;
 	case 'Florges-White':

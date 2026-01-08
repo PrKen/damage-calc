@@ -528,6 +528,7 @@ $(".move-selector").change(function () {
 	var stat = move.category === 'Special' ? 'spa' : 'atk';
 	if (Array.isArray(move.multihit) || (!isNaN(move.multihit) && move.multiaccuracy)) {
 		moveGroupObj.children(".move-times").hide();
+		moveGroupObj.children(".move-times").val(1);
 		moveGroupObj.children(".move-hits").empty();
 		if (!isNaN(move.multihit)) {
 			for (var i = 1; i <= move.multihit; i++) {
@@ -551,7 +552,13 @@ $(".move-selector").change(function () {
 		}
 
 		moveGroupObj.children(".move-hits").val(moveHits);
+	} else if (!isNaN(move.multihit)) {
+		moveGroupObj.children(".move-hits").val(1);
+		moveGroupObj.children(".move-hits").hide();
+		moveGroupObj.children(".move-times").val(1);
+		moveGroupObj.children(".move-times").hide();
 	} else {
+		moveGroupObj.children(".move-hits").val(1);
 		moveGroupObj.children(".move-hits").hide();
 		moveGroupObj.children(".move-times").show();
 	}
@@ -768,8 +775,13 @@ $(".set-selector").change(function () {
 		} else {
 			formeObj.hide();
 		}
-		calcHP(pokeObj);
 		calcStats(pokeObj);
+		var total = pokeObj.find(".hp").find(".total").text();
+		pokeObj.find(".max-hp").text(total);
+		pokeObj.find(".max-hp").attr("data-prev", total);
+		pokeObj.find(".current-hp").val(total);
+		pokeObj.find(".current-hp").attr("data-set", true);
+		calcHP(pokeObj);
 		abilityObj.change();
 		itemObj.change();
 		if (pokemon.gender === "N") {
@@ -923,13 +935,18 @@ $(".forme").change(function () {
 		$(this).parent().siblings().find(".teraToggle").prop("checked", true);
 	}
 	var isRandoms = $("#randoms").prop("checked");
-	var pokemonSets = isRandoms ? gen >= 8 ? randdex[pokemonName][setName] :
-		randdex[pokemonName] : setdex[pokemonName];
-	var chosenSet = pokemonSets && pokemonSets[setName];
+	var pokemonSets = isRandoms ? randdex[pokemonName] : setdex[pokemonName];
+	var chosenSet = isRandoms && gen < 8 ? pokemonSets : pokemonSets && pokemonSets[setName];
 	var greninjaSet = $(this).val().indexOf("Greninja") !== -1;
 	var isAltForme = $(this).val() !== pokemonName;
 	if (isAltForme && abilities.indexOf(altForme.abilities[0]) !== -1 && !greninjaSet) {
 		container.find(".ability").val(altForme.abilities[0]);
+	} else if (!isAltForme && abilities.indexOf(altForme.abilities[0]) !== -1 && !greninjaSet) {
+		if (chosenSet && (chosenSet.ability || chosenSet.abilities[0])) {
+			container.find(".ability").val(isRandoms ? chosenSet.abilities[0] : chosenSet.ability);
+		} else {
+			container.find(".ability").val(altForme.abilities[0]);
+		}
 	} else if (greninjaSet) {
 		$(this).parent().find(".ability");
 	} else if (chosenSet) {
@@ -961,7 +978,7 @@ function correctHiddenPower(pokemon) {
 	var maxed = true;
 	for (var i = 0; i <= LEGACY_STATS[9].length; i++) {
 		var s = LEGACY_STATS[9][i];
-		var iv = ivs[legacyStatToStat(s)] = (pokemon.ivs && pokemon.ivs[s]) || 31;
+		var iv = ivs[legacyStatToStat(s)] = (pokemon.ivs && typeof pokemon.ivs[s] !== "undefined") ? pokemon.ivs[s] : 31;
 		if (iv !== 31) maxed = false;
 	}
 
@@ -1044,7 +1061,7 @@ function createPokemon(pokeInfo) {
 			level: set.level,
 			ability: set.ability,
 			abilityOn: true,
-			item: set.item && typeof set.item !== "undefined" && (set.item === "Eviolite" || set.item.indexOf("ite") < 0) ? set.item : "",
+			item: set.item && typeof set.item !== "undefined" && (set.item === "Eviolite" || set.item === "White Herb" || set.item.indexOf("ite") < 0) ? set.item : "",
 			nature: set.nature,
 			ivs: ivs,
 			evs: evs,
@@ -1101,7 +1118,6 @@ function createPokemon(pokeInfo) {
 			ivs: ivs,
 			evs: evs,
 			isDynamaxed: isDynamaxed,
-			isSaltCure: pokeInfo.find(".saltcure").is(":checked"),
 			alliesFainted: parseInt(pokeInfo.find(".alliesFainted").val()),
 			boostedStat: pokeInfo.find(".boostedStat").val() || undefined,
 			teraType: teraType,
@@ -1189,10 +1205,12 @@ function createField() {
 	var isLightScreen = [$("#lightScreenL").prop("checked"), $("#lightScreenR").prop("checked")];
 	var isProtected = [$("#protectL").prop("checked"), $("#protectR").prop("checked")];
 	var isSeeded = [$("#leechSeedL").prop("checked"), $("#leechSeedR").prop("checked")];
+	var isSaltCured = [$("#saltCureL").prop("checked"), $("#saltCureR").prop("checked")];
 	var isForesight = [$("#foresightL").prop("checked"), $("#foresightR").prop("checked")];
 	var isHelpingHand = [$("#helpingHandL").prop("checked"), $("#helpingHandR").prop("checked")];
 	var isTailwind = [$("#tailwindL").prop("checked"), $("#tailwindR").prop("checked")];
 	var isFlowerGift = [$("#flowerGiftL").prop("checked"), $("#flowerGiftR").prop("checked")];
+	var isPowerTrick = [$("#powerTrickL").prop("checked"), $("#powerTrickR").prop("checked")];
 	var isSteelySpirit = [$("#steelySpiritL").prop("checked"), $("#steelySpiritR").prop("checked")];
 	var isFriendGuard = [$("#friendGuardL").prop("checked"), $("#friendGuardR").prop("checked")];
 	var isAuroraVeil = [$("#auroraVeilL").prop("checked"), $("#auroraVeilR").prop("checked")];
@@ -1214,10 +1232,12 @@ function createField() {
 			isLightScreen: isLightScreen[i],
 			isProtected: isProtected[i],
 			isSeeded: isSeeded[i],
+			isSaltCured: isSaltCured[i],
 			isForesight: isForesight[i],
 			isTailwind: isTailwind[i],
 			isHelpingHand: isHelpingHand[i],
 			isFlowerGift: isFlowerGift[i],
+			isPowerTrick: isPowerTrick[i],
 			isSteelySpirit: isSteelySpirit[i],
 			isFriendGuard: isFriendGuard[i],
 			isAuroraVeil: isAuroraVeil[i],
@@ -1432,6 +1452,7 @@ $(".gen").change(function () {
 	loadDefaultLists();
 	$(".gen-specific.g" + gen).show();
 	$(".gen-specific").not(".g" + gen).hide();
+	$("input:radio[name='format']").change();
 	var typeOptions = getSelectOptions(Object.keys(typeChart));
 	$("select.type1, select.move-type").find("option").remove().end().append(typeOptions);
 	$("select.teraType").find("option").remove().end().append(getSelectOptions(Object.keys(typeChart).slice(1)));
@@ -1464,6 +1485,8 @@ function clearField() {
 	$("#singles-format").prop("checked", true);
 	$("#clear").prop("checked", true);
 	$("#gscClear").prop("checked", true);
+	$("#magicroom").prop("checked", false);
+	$("#wonderroom").prop("checked", false);
 	$("#gravity").prop("checked", false);
 	$("#srL").prop("checked", false);
 	$("#srR").prop("checked", false);
@@ -1489,6 +1512,14 @@ function clearField() {
 	$("#protectR").prop("checked", false);
 	$("#leechSeedL").prop("checked", false);
 	$("#leechSeedR").prop("checked", false);
+	$("#flowerGiftL").prop("checked", false);
+	$("#flowerGiftR").prop("checked", false);
+	$("#powerTrickL").prop("checked", false);
+	$("#powerTrickR").prop("checked", false);
+	$("#steelySpiritL").prop("checked", false);
+	$("#steelySpiritR").prop("checked", false);
+	$("#saltCureL").prop("checked", false);
+	$("#saltCureR").prop("checked", false);
 	$("#foresightL").prop("checked", false);
 	$("#foresightR").prop("checked", false);
 	$("#helpingHandL").prop("checked", false);
@@ -1501,6 +1532,8 @@ function clearField() {
 	$("#auroraVeilR").prop("checked", false);
 	$("#batteryL").prop("checked", false);
 	$("#batteryR").prop("checked", false);
+	$("#powerSpotL").prop("checked", false);
+	$("#powerSpotR").prop("checked", false);
 	$("#switchingL").prop("checked", false);
 	$("#switchingR").prop("checked", false);
 	$("input:checkbox[name='terrain']").prop("checked", false);
